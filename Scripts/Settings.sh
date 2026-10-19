@@ -43,4 +43,12 @@ if [[ "${WRT_TARGET^^}" == *"QUALCOMMAX"* ]]; then
 		find $DTS_PATH -type f ! -iname '*nowifi*' -exec sed -i 's/ipq\(6018\|8074\).dtsi/ipq\1-nowifi.dtsi/g' {} +
 		echo "qualcommax set up nowifi successfully!"
 	fi
+
+	#开启 eBPF/BTF 后内核变大，NN6000 内核分区实为 12M，把 KERNEL_SIZE 从 6144k 提到 12288k
+	#只改 link_nn6000-common 块内那行，避免误伤同文件的 6144k（jdcloud/emmc-common 等）
+	IMAGE_MK="./target/linux/qualcommax/image/ipq60xx.mk"
+	if [ -f "$IMAGE_MK" ]; then
+		sed -i '/define Device\/link_nn6000-common/,/^endef/s/KERNEL_SIZE := 6144k/KERNEL_SIZE := 12288k/' "$IMAGE_MK"
+		echo "link_nn6000 KERNEL_SIZE set to 12288k"
+	fi
 fi
