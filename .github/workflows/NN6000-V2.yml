@@ -1,8 +1,8 @@
 name: NN6000-V2
 on:
-  #自动编译：每天早上5点（21:21 UTC 触发，即北京5:21）
+  #自动编译：每天中午12点（04:00 UTC 触发，即北京12:00）
   schedule:
-    - cron: 21 21 * * *
+    - cron: 0 4 * * *
   workflow_dispatch:
     inputs:
       PACKAGE:
