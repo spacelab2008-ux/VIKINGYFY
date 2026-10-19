@@ -1,0 +1,31 @@
+name: NN6000-V2-BTF-OpenClash
+
+on:
+  workflow_dispatch:
+    inputs:
+      TEST:
+        description: '仅生成并检查配置，不编译固件'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: NN6000-V2-BTF
+    uses: ./.github/workflows/WRT-CORE.yml
+    with:
+      WRT_CONFIG: NN6000-V2-BTF-WIFI-NO
+      WRT_GENERAL: GENERAL-NN6000-V2-BTF
+      WRT_THEME: aurora
+      WRT_NAME: OWRT
+      WRT_SSID: OWRT
+      WRT_WORD: 12345678
+      WRT_IP: 192.168.10.1
+      WRT_PW: 无
+      WRT_REPO: https://github.com/VIKINGYFY/immortalwrt.git
+      WRT_BRANCH: owrt
+      WRT_SOURCE: VIKINGYFY/immortalwrt
+      WRT_TEST: ${{ inputs.TEST || false }}
