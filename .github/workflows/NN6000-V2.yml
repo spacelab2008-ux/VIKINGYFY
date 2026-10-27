@@ -1,4 +1,5 @@
 name: NN6000-V2
+
 on:
   #自动编译：每天早上7点（23:00 UTC 触发，即北京次日7:00）
   schedule:
@@ -14,7 +15,9 @@ on:
         default: false
         required: false
         type: boolean
+
 permissions: write-all
+
 jobs:
   build:
     name: NN6000-V2
