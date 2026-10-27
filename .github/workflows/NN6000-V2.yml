@@ -27,8 +27,8 @@ jobs:
       WRT_WORD: 12345678
       WRT_IP: 192.168.10.1
       WRT_PW: 无
-      WRT_REPO: https://github.com/spacelab2008-ux/immortalwrt.git
-      WRT_BRANCH: master
-      WRT_SOURCE: spacelab2008-ux/immortalwrt
+      WRT_REPO: https://github.com/VIKINGYFY/immortalwrt.git
+      WRT_BRANCH: owrt
+      WRT_SOURCE: VIKINGYFY/immortalwrt
       WRT_PACKAGE: ${{ inputs.PACKAGE }}
       WRT_TEST: ${{ inputs.TEST || false }}
