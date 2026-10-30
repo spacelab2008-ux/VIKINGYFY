@@ -95,11 +95,20 @@ UPDATE_PACKAGE "qmodem-generic" "LianXia233/luci-app-qmodem-generic" "main"
 UPDATE_PACKAGE "luci-app-daed" "QiuSimons/luci-app-daed" "kix"
 UPDATE_PACKAGE "luci-app-dae" "davidtall/luci-app-dae" "main"
 #移除 feeds 中自带的 dae 包，避免与上面引入的版本冲突
+#注意：davidtall/luci-app-dae 自带 dae 二进制包，删掉 feeds 版本不会丢依赖
 rm -rf ./feeds/luci/applications/luci-app-dae* ./feeds/packages/net/dae*
-#修复 daed 编译：pnpm 安装需要放开 lockfile
+#清理 feeds install 留下的悬空软链接（指向已删除的 feeds 目录会让 defconfig 扫描报错）
+for LINK in ./package/feeds/*/*; do
+	if [ -L "$LINK" ] && [ ! -e "$LINK" ]; then
+		rm -f "$LINK"
+		echo "Remove dangling link: $LINK"
+	fi
+done
+#修复 daed 编译：上游的 pnpm install 带 frozen-lockfile，仓库 lockfile 与 package.json 不匹配会直接失败
 [ -f ./package/luci-app-daed/daed/Makefile ] && \
 	sed -i 's/pnpm install ; \\/pnpm install --no-frozen-lockfile ; \\/g' ./package/luci-app-daed/daed/Makefile
-#修复 daed 的 procd 启动脚本
+#修复 daed 启动脚本：上游用 sed 把 procd_set_param env 插到 /run/ 之前（在 procd_open_instance 之外，无效），
+#改为插到 "procd_set_param command" 之前，即实例块内部，环境变量才能真正生效
 [ -f ./package/luci-app-daed/luci-app-daed/root/etc/init.d/luci_daed ] && \
 	sed -i 's|/run/i\\  procd_set_param|/procd_set_param command/i \\\tprocd_set_param|g' ./package/luci-app-daed/luci-app-daed/root/etc/init.d/luci_daed
 
