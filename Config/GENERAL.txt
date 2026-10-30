@@ -1,6 +1,8 @@
 #科学插件调整
 CONFIG_PACKAGE_luci-app-homeproxy=n
 CONFIG_PACKAGE_luci-app-openclash=y
+#eBPF 内核级透明代理（依赖 function.sh 注入的内核 eBPF 支持；luci-app-daed 可按需通过 WRT_PACKAGE/PRIVATE.txt 开启）
+CONFIG_PACKAGE_luci-app-dae=y
 #增加插件
 CONFIG_PACKAGE_luci-app-autoreboot=y
 CONFIG_PACKAGE_luci-app-mini-diskmanager=y

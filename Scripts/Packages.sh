@@ -91,6 +91,18 @@ UPDATE_PACKAGE "mt5700m" "LianXia233/luci-app-mt5700m" "main"
 UPDATE_PACKAGE "netmonitor" "LianXia233/luci-app-netmonitor" "main"
 UPDATE_PACKAGE "qmodem-generic" "LianXia233/luci-app-qmodem-generic" "main"
 
+#eBPF 内核级透明代理 dae/daed（依赖 Settings.sh 注入的内核 eBPF 支持）
+UPDATE_PACKAGE "luci-app-daed" "QiuSimons/luci-app-daed" "kix"
+UPDATE_PACKAGE "luci-app-dae" "davidtall/luci-app-dae" "main"
+#移除 feeds 中自带的 dae 包，避免与上面引入的版本冲突
+rm -rf ./feeds/luci/applications/luci-app-dae* ./feeds/packages/net/dae*
+#修复 daed 编译：pnpm 安装需要放开 lockfile
+[ -f ./package/luci-app-daed/daed/Makefile ] && \
+	sed -i 's/pnpm install ; \\/pnpm install --no-frozen-lockfile ; \\/g' ./package/luci-app-daed/daed/Makefile
+#修复 daed 的 procd 启动脚本
+[ -f ./package/luci-app-daed/luci-app-daed/root/etc/init.d/luci_daed ] && \
+	sed -i 's|/run/i\\  procd_set_param|/procd_set_param command/i \\\tprocd_set_param|g' ./package/luci-app-daed/luci-app-daed/root/etc/init.d/luci_daed
+
 #更新软件包版本
 UPDATE_VERSION() {
 	local PKG_NAME=$1
