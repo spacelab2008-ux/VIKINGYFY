@@ -73,16 +73,15 @@ jobs:
       cache_key: ${{steps.clone-code.outputs.cache_key}}
     steps:
       - name: Checkout Projects
-        uses: actions/checkout@main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Initialization Environment
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get -yqq purge firefox
+          # 只做索引更新+装依赖，不再整机 full-upgrade：
+          # 每次构建都全量升级会拉进不可控的新版包，白白多花 2 分钟还容易把构建搞挂
           sudo apt-get -yqq update
-          sudo apt-get -yqq full-upgrade
-          sudo apt-get -yqq autoremove --purge
           sudo apt-get -yqq autoclean
           sudo apt-get -yqq clean
 
@@ -173,7 +172,7 @@ jobs:
       - name: Restore Build Cache
         id: cache-restore
         if: ${{ !inputs.WRT_TEST }}
-        uses: actions/cache/restore@main
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: ${{env.WRT_CACHE_KEY}}
           restore-keys: ${{env.WRT_CACHE_PREFIX}}-
@@ -264,7 +263,7 @@ jobs:
       - name: Upload Build Reports
         if: ${{ !inputs.WRT_TEST && always() }}
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: build-reports-${{env.WRT_CONFIG}}-${{env.WRT_INFO}}-${{github.run_attempt}}
           path: ./build-reports/
@@ -272,7 +271,7 @@ jobs:
 
       - name: Save Build Cache
         if: ${{ !inputs.WRT_TEST && success() && steps.cache-restore.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@main
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: ${{env.WRT_CACHE_KEY}}
           path: |
@@ -317,7 +316,7 @@ jobs:
           fi
 
       - name: Release Firmware
-        uses: softprops/action-gh-release@master
+        uses: softprops/action-gh-release@6680cc089e59314c4460b839412c25fb6a71ce3b # master 2026-10-17
         with:
           tag_name: ${{env.WRT_CONFIG}}-${{env.WRT_DATE}}
           files: ./wrt/upload/*.*
