@@ -124,11 +124,19 @@ if $OC_ENABLED; then
 	OC_ARCH=arm64
 	grep -qs '^CONFIG_TARGET_x86' "${GITHUB_WORKSPACE:-.}/Config/$WRT_CONFIG.txt" 2>/dev/null && OC_ARCH=amd64
 	OC_CORE_DIR="./files/etc/openclash/core"
-	OC_VER=$(curl -sL --max-time 30 "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" | jq -r ".tag_name // empty")
+	OC_VER=$(curl -fsSL --max-time 30 "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" | jq -r ".tag_name // empty" 2>/dev/null)
 	if [ -n "$OC_VER" ]; then
-		echo "OpenClash Meta core: $OC_VER ($OC_ARCH)"
+		#mihomo 的发布资源命名各架构不一致：amd64 没有裸 mihomo-linux-amd64-<ver>.gz，
+		#只有 -compatible / -v1 / -v1-go1xx 变体（-compatible 兼容性最好）；
+		#arm64 则只有标准包。拼错名字会 404，固件就静默不带内核了。
+		if [ "$OC_ARCH" = "amd64" ]; then
+			OC_ASSET="mihomo-linux-amd64-compatible-$OC_VER.gz"
+		else
+			OC_ASSET="mihomo-linux-$OC_ARCH-$OC_VER.gz"
+		fi
+		echo "OpenClash Meta core: $OC_VER ($OC_ARCH) <- $OC_ASSET"
 		mkdir -p "$OC_CORE_DIR"
-		if curl -sL --max-time 300 "https://github.com/MetaCubeX/mihomo/releases/download/$OC_VER/mihomo-linux-$OC_ARCH-$OC_VER.gz" -o /tmp/mihomo.gz \
+		if curl -fsSL --max-time 300 "https://github.com/MetaCubeX/mihomo/releases/download/$OC_VER/$OC_ASSET" -o /tmp/mihomo.gz \
 			&& gzip -t /tmp/mihomo.gz 2>/dev/null; then
 			gunzip -f /tmp/mihomo.gz
 			mv /tmp/mihomo "$OC_CORE_DIR/clash_meta"

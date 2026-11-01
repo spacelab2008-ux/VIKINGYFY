@@ -37,7 +37,9 @@ dns:
   bootstrap_dns:
     - 223.5.5.5
     - 119.29.29.29
-  fallback_dns: []
+  fallback_dns:
+    - 223.5.5.5
+    - 119.29.29.29
   upstream_mode: load_balance
   fastest_timeout: 1s
   allowed_clients: []

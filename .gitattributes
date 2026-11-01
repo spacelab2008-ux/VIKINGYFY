@@ -1,2 +1,9 @@
 *.txt text eol=lf
 *.sh text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.nft text eol=lf
+*.uc text eol=lf
+# Files/ 下是直接烧进固件的预置文件，必须保持 LF：
+# 其中 uci-defaults 脚本没有扩展名，若被转成 CRLF，首启时会因 "#!/bin/sh\r" 执行失败
+Files/** text eol=lf
