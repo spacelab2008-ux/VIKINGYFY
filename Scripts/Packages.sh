@@ -31,9 +31,22 @@ UPDATE_PACKAGE() {
 		fi
 	done
 
-	# 克隆 GitHub 仓库：失败必须终止构建，否则会静默产出缺插件的固件
-	if ! git clone --depth=1 --single-branch --branch "$PKG_BRANCH" "https://github.com/$PKG_REPO.git" "$REPO_PATH"; then
-		echo "ERROR: 克隆失败 $PKG_REPO ($PKG_BRANCH)，终止编译" >&2
+	# 克隆 GitHub 仓库：失败必须终止构建，否则会静默产出缺插件的固件。
+	# 但单次网络抖动不该直接判死——本脚本要克隆 38 个仓库，任一次抖动都会拖垮整轮构建，
+	# 所以这里重试 3 次（间隔递增），只有连续失败才终止。
+	local CLONE_OK=false
+	local ATTEMPT
+	for ATTEMPT in 1 2 3; do
+		rm -rf "$REPO_PATH"
+		if git clone --depth=1 --single-branch --branch "$PKG_BRANCH" "https://github.com/$PKG_REPO.git" "$REPO_PATH"; then
+			CLONE_OK=true
+			break
+		fi
+		echo "WARN: 克隆 $PKG_REPO ($PKG_BRANCH) 第 $ATTEMPT 次失败" >&2
+		[ "$ATTEMPT" -lt 3 ] && sleep $((ATTEMPT * 5))
+	done
+	if ! $CLONE_OK; then
+		echo "ERROR: 克隆失败 $PKG_REPO ($PKG_BRANCH) 连续 3 次，终止编译" >&2
 		rm -rf "$REPO_PATH"
 		exit 1
 	fi

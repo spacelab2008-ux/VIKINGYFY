@@ -106,23 +106,39 @@ jobs:
           echo "=========== 清理前 ==========="
           df -h / /mnt 2>/dev/null || df -h
 
-          # 删除 runner 镜像里用不到的预装 SDK / 工具链，可释放约 20G 以上
+          # runner 镜像预装了大量与固件编译无关的 SDK/语言运行时，全量删除可释放 40G 以上。
+          # 注意：hostedtoolcache 被清掉后 actions/setup-* 缓存失效，本工作流没有用到它们，安全。
           sudo rm -rf \
             /usr/share/dotnet \
             /usr/local/lib/android \
             /usr/local/share/boost \
+            /usr/local/.ghcup \
             /opt/ghc \
             /opt/az \
-            /opt/hostedtoolcache/CodeQL \
+            /opt/microsoft \
+            /opt/hostedtoolcache \
             /usr/local/lib/node_modules \
+            /usr/local/aws-cli \
+            /usr/local/aws-sam-cli \
+            /usr/local/share/powershell \
             /usr/share/swift \
+            /usr/share/miniconda \
             /usr/lib/jvm 2>/dev/null || true
 
           sudo docker image prune --all --force 2>/dev/null || true
+          sudo docker builder prune --all --force 2>/dev/null || true
+          sudo docker system prune --all --force --volumes 2>/dev/null || true
           sudo apt-get -yqq clean
+          sudo swapoff -a 2>/dev/null || true
 
           echo "=========== 清理后 ==========="
           df -h / /mnt 2>/dev/null || df -h
+          # 可用空间低于 45G 时明确告警：AGH 走 Go 源码编译，GOCACHE 峰值可达数 G
+          AVAIL=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+          echo "rootfs 可用: ${AVAIL}G"
+          if [ "${AVAIL:-0}" -lt 45 ]; then
+            echo "::warning::可用空间仅 ${AVAIL}G，低于 45G 建议值，Go 编译阶段有爆盘风险"
+          fi
 
       - name: Initialization Values
         id: initialize-values
@@ -196,8 +212,16 @@ jobs:
         run: |
           cd ./wrt/
 
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
+          # 无人值守构建：feeds 拉取常因 GitHub 限流/抖动失败，重试 3 次再判定
+          for i in 1 2 3; do
+            if ./scripts/feeds update -a && ./scripts/feeds install -a; then
+              echo "feeds 更新成功（第 $i 次）"
+              break
+            fi
+            echo "::warning::feeds 更新第 $i 次失败，20 秒后重试"
+            [ "$i" -lt 3 ] || { echo "::error::feeds 连续 3 次更新失败"; exit 1; }
+            sleep 20
+          done
 
       - name: Custom Packages
         run: |
@@ -234,10 +258,14 @@ jobs:
         run: |
           cd ./wrt/
 
-          make download -j$(nproc)
+          # dl 下载失败会拖到编译阶段才炸，且日志难读，这里先重试两次
+          make download -j$(nproc) || make download -j1 V=s || {
+            echo "::warning::源码包下载有失败项，继续编译（缺包会在编译阶段暴露）"
+          }
 
       - name: Compile Firmware
         if: ${{ !inputs.WRT_TEST }}
+        timeout-minutes: 240
         run: |
           cd ./wrt/
 
@@ -252,6 +280,66 @@ jobs:
 
           echo "=========== 编译后资源 ==========="
           df -h / /mnt 2>/dev/null || df -h
+
+      - name: Diagnose Build Failure
+        if: ${{ !inputs.WRT_TEST && failure() }}
+        continue-on-error: true
+        run: |
+          # 无人值守跑构建时，失败原因必须自己浮出来：
+          # 1) 把判断结论写进 $GITHUB_STEP_SUMMARY（GitHub 页面顶部直接可见，手机也能看）
+          # 2) 用 ::error:: 让结论在日志里高亮
+          # 3) 原文落到 build-reports/failure-summary.txt，随 artifact 保存 7 天
+          OUT="$GITHUB_WORKSPACE/build-reports/failure-summary.txt"
+          mkdir -p "$GITHUB_WORKSPACE/build-reports"
+
+          AVAIL=$(df -BG --output=avail / 2>/dev/null | tail -1 | tr -dc '0-9')
+          ERRORS=""
+
+          {
+            echo "时间: $(date '+%F %T')"
+            echo "可用磁盘: ${AVAIL:-未知}G"
+            echo
+            echo "--- 内存 ---"
+            free -m 2>/dev/null || true
+            echo
+            echo "--- logs/ 中最新的编译错误（尾部 60 行）---"
+            NEWEST=$(ls -t ./wrt/logs/package/**/compile.txt ./wrt/logs/target/**/compile.txt \
+                      ./wrt/logs/package/**/**/compile.txt 2>/dev/null | head -1)
+            if [ -n "$NEWEST" ]; then
+              echo "来源: $NEWEST"
+              tail -60 "$NEWEST" 2>/dev/null || true
+            else
+              echo "（未找到 compile.txt，回退到全量日志 grep）"
+              grep -rhoiE "(error|fatal|No space left|Killed|undefined reference)" \
+                ./wrt/logs/ 2>/dev/null | tail -60 || true
+            fi
+          } > "$OUT" 2>&1
+
+          # 判因
+          if [ -n "$AVAIL" ] && [ "$AVAIL" -lt 3 ]; then
+            ERRORS="磁盘写满（No space left on device）→ 需扩容或减少编译产物"
+          elif grep -qi "No space left on device" "$OUT"; then
+            ERRORS="磁盘写满（No space left on device）→ 需扩容或减少编译产物"
+          elif grep -qiE "Killed|Out of memory|out of memory" "$OUT"; then
+            ERRORS="进程被 OOM Killer 杀掉 → 内存不足（Go 编译 AGH 阶段最容易触发）"
+          elif grep -qi "golang" "$OUT" && grep -qiE "error" "$OUT"; then
+            ERRORS="疑似 Go 工具链/AGH 编译失败 → 检查 golang1.27 与 adguardhome 版本匹配"
+          else
+            ERRORS="具体包的编译错误，详见下方摘要"
+          fi
+
+          {
+            echo "## ❌ 编译失败诊断"
+            echo ""
+            echo "**判断：${ERRORS}**"
+            echo ""
+            echo '```'
+            tail -60 "$OUT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::error::${ERRORS}"
+          echo "诊断原文已写入 build-reports/failure-summary.txt"
 
       - name: Collect Build Reports
         if: ${{ !inputs.WRT_TEST && always() }}
