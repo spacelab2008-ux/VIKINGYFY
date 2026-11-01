@@ -1,0 +1,12 @@
+## 强制内网客户端的 DNS 查询走本机 AdGuard Home
+## 目的：捕获自行写死外部 DNS（8.8.8.8 等）的设备
+## 只处理 IPv4，且只处理源接口为 br-lan 的流量
+## 排除目标是内网地址的查询（避免干扰内网 DNS 服务器）
+chain dns_hijack_dstnat {
+	type nat hook prerouting priority -101; policy accept;
+
+	iifname != "br-lan" return
+	ip daddr 192.168.10.0/24 return
+	udp dport 53 redirect to :53
+	tcp dport 53 redirect to :53
+}
