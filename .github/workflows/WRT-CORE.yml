@@ -46,7 +46,8 @@ on:
         type: boolean
 
 env:
-  GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+  # 不在工作流级别注入 GITHUB_TOKEN：core job 里会执行第三方插件的 Makefile，
+  # 令牌只在真正需要它的 cache-rollover job 内单独提供
   WRT_CONFIG: ${{inputs.WRT_CONFIG}}
   WRT_THEME: ${{inputs.WRT_THEME}}
   WRT_NAME: ${{inputs.WRT_NAME}}
@@ -301,6 +302,18 @@ jobs:
             echo "WRT_KVER=$(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^kernel - \K[\d\.]+' {} \;)" >> $GITHUB_ENV
             echo "WRT_LIST=$(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^luci-(app|theme)[^ ]*' {} \; | tr '\n' ' ')" >> $GITHUB_ENV
 
+            # WIFI-NO 固件用 nowifi.dtsi，没有射频，发布说明里不能列出 SSID/密码
+            if [[ "$WRT_WIFI" == "WIFI-NO" ]]; then
+              echo "WRT_WIFI_INFO=WIFI：此固件为无 Wi-Fi 版本，无线功能未启用。" >> $GITHUB_ENV
+            else
+              {
+                echo "WRT_WIFI_INFO<<__WIFI_EOF__"
+                echo "WIFI名称：$WRT_SSID"
+                echo "WIFI密码：$WRT_WORD"
+                echo "__WIFI_EOF__"
+              } >> $GITHUB_ENV
+            fi
+
             find ./bin/targets/ -iregex ".*\(buildinfo\|json\|sha256sums\|packages\)$" -exec rm -rf {} +
 
             for FILE in $(find ./bin/targets/ -type f -iname "*$WRT_TARGET*") ; do
@@ -337,8 +350,7 @@ jobs:
             登录地址：${{env.WRT_IP}}
             登录密码：${{env.WRT_PW}}
 
-            WIFI名称：${{env.WRT_SSID}}
-            WIFI密码：${{env.WRT_WORD}}
+            ${{env.WRT_WIFI_INFO}}
 
             内核版本：${{env.WRT_KVER}}
             插件列表：${{env.WRT_LIST}}

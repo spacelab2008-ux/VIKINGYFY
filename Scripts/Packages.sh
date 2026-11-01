@@ -31,8 +31,12 @@ UPDATE_PACKAGE() {
 		fi
 	done
 
-	# 克隆 GitHub 仓库
-	git clone --depth=1 --single-branch --branch $PKG_BRANCH "https://github.com/$PKG_REPO.git" $REPO_PATH
+	# 克隆 GitHub 仓库：失败必须终止构建，否则会静默产出缺插件的固件
+	if ! git clone --depth=1 --single-branch --branch "$PKG_BRANCH" "https://github.com/$PKG_REPO.git" "$REPO_PATH"; then
+		echo "ERROR: 克隆失败 $PKG_REPO ($PKG_BRANCH)，终止编译" >&2
+		rm -rf "$REPO_PATH"
+		exit 1
+	fi
 
 	# 处理克隆的仓库
 	if [[ "$PKG_SPECIAL" == "pkg" ]]; then

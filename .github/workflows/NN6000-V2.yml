@@ -17,7 +17,8 @@ on:
         required: false
         type: boolean
 
-permissions: write-all
+permissions:
+  contents: write
 
 # 定时任务与手动触发串行执行：同一时间只跑一个构建，
 # 避免两个 runner 同时抢磁盘/缓存（曾因磁盘写满导致整轮构建失败）
