@@ -328,7 +328,20 @@ jobs:
             make clean -j$(nproc)
           fi
 
+      # TEST 模式只产出 .config，改用 artifact 上传。
+      # 不能照常发 release：那样的 release 只含一个 Config 文件，却会成为"最新发布"，
+      # 而 Auto-Clean 只保留最新 1 个 release，上一版真固件会被挤掉删除。
+      - name: Upload Config
+        if: ${{ inputs.WRT_TEST }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: config-${{env.WRT_CONFIG}}-${{env.WRT_DATE}}-${{github.run_attempt}}
+          path: ./wrt/upload/*.txt
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Release Firmware
+        if: ${{ !inputs.WRT_TEST }}
         uses: softprops/action-gh-release@6680cc089e59314c4460b839412c25fb6a71ce3b # master 2026-10-17
         with:
           tag_name: ${{env.WRT_CONFIG}}-${{env.WRT_DATE}}
