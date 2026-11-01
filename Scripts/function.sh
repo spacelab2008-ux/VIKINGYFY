@@ -33,9 +33,11 @@ CONFIG_SCHED_CLASS_EXT=y
 CONFIG_PROBE_EVENTS_BTF_ARGS=y
 EOF
 		#ARM64 专属选项（x86 等目标跳过）
+		#CONFIG_ARM64_CONTPTE 依赖 KERNEL_TRANSPARENT_HUGEPAGE，本仓库 THP 关闭，
+		#写入后会被 Kconfig 静默丢弃（产物 .config 中不出现），故不再写入。
+		#若以后要启用 THP，需同时开启 KERNEL_TRANSPARENT_HUGEPAGE 后再加回此行。
 		if [[ "${WRT_TARGET,,}" != "x86" ]]; then
 			cat >> "$1" <<EOF
-CONFIG_ARM64_CONTPTE=y
 CONFIG_ARM64_BRBE=y
 EOF
 		fi
