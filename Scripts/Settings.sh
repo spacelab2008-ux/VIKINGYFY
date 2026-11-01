@@ -61,6 +61,6 @@ if [[ "${WRT_TARGET^^}" == *"QUALCOMMAX"* ]]; then
 		echo "qualcommax set up nowifi successfully!"
 	fi
 fi
-#注入 eBPF 支持（dae/daed 依赖，见 function.sh）
+#内核槽大小适配（nn6000 已刷 12MB 内核分区，见 function.sh）
 source $GITHUB_WORKSPACE/Scripts/function.sh
-apply_ebpf_config
+apply_kernel_tweaks
