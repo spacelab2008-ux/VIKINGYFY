@@ -136,6 +136,44 @@ if $DAED_ENABLED; then
 	fi
 fi
 
+#内置 OpenClash Meta 内核（mihomo）：刷机后开箱即用，免去首次启动联网下载内核
+#1) 仅当 Config 启用 luci-app-openclash（或 WRT_PACKAGE 指定）才执行；
+#2) 按目标平台自动选 amd64/arm64（本仓库除 X86 外均为 armv8）；
+#3) 放入 ./files/etc/openclash/core/clash_meta，走 OpenWrt 顶层 files/ 覆盖机制随固件生成；
+#4) 下载失败不终止构建：OpenClash 运行时在线更新内核仍可兜底
+OC_ENABLED=false
+case "$WRT_TEST" in
+	true*|True*|TRUE*) ;;
+	*)
+		grep -rqs '^CONFIG_PACKAGE_luci-app-openclash=y' "${GITHUB_WORKSPACE:-.}/Config/" && OC_ENABLED=true
+		case "$WRT_PACKAGE" in
+			*luci-app-openclash*) OC_ENABLED=true ;;
+		esac
+		;;
+esac
+if $OC_ENABLED; then
+	OC_ARCH=arm64
+	grep -qs '^CONFIG_TARGET_x86' "${GITHUB_WORKSPACE:-.}/Config/$WRT_CONFIG.txt" 2>/dev/null && OC_ARCH=amd64
+	OC_CORE_DIR="./files/etc/openclash/core"
+	OC_VER=$(curl -sL --max-time 30 "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" | jq -r ".tag_name // empty")
+	if [ -n "$OC_VER" ]; then
+		echo "OpenClash Meta core: $OC_VER ($OC_ARCH)"
+		mkdir -p "$OC_CORE_DIR"
+		if curl -sL --max-time 300 "https://github.com/MetaCubeX/mihomo/releases/download/$OC_VER/mihomo-linux-$OC_ARCH-$OC_VER.gz" -o /tmp/mihomo.gz \
+			&& gzip -t /tmp/mihomo.gz 2>/dev/null; then
+			gunzip -f /tmp/mihomo.gz
+			mv /tmp/mihomo "$OC_CORE_DIR/clash_meta"
+			chmod 0755 "$OC_CORE_DIR/clash_meta"
+			echo "core installed: $(du -h "$OC_CORE_DIR/clash_meta" | cut -f1) -> $OC_CORE_DIR/clash_meta"
+		else
+			echo "WARN: mihomo 内核下载失败，固件不带内置内核（运行时会自动在线下载）"
+			rm -f /tmp/mihomo.gz
+		fi
+	else
+		echo "WARN: 获取 mihomo 最新版本号失败，跳过内置内核"
+	fi
+fi
+
 #更新软件包版本
 UPDATE_VERSION() {
 	local PKG_NAME=$1
