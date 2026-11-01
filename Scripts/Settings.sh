@@ -11,10 +11,27 @@ find ./feeds/luci/modules/luci-mod-system/ -type f -name "flash.js" -exec sed -i
 find ./feeds/luci/modules/luci-mod-status/ -type f -name "10_system.js" -exec sed -i "s/(\(luciversion || ''\))/(\1) + (' \/ $WRT_MARK-$WRT_DATE')/g" {} +
 WIFI_UC="./package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc"
 if [ -f "$WIFI_UC" ]; then
+	#上游模板是 set ${si}.ssid='${defaults?.ssid || 'OWRT'}'
+	#用 ssid='.*' 贪婪替换会把 ${defaults?.ssid || 'OWRT'} 整段吃掉，同时丢掉空值兜底：
+	#WRT_SSID 为空时默认 SSID 会变成空串，无线直接不可见。
+	#这里精确匹配整段表达式，并把空值兜底补回来。
+	WRT_SSID=${WRT_SSID:-OWRT}
+	WRT_WORD=${WRT_WORD:-12345678}
+	#替换串里的 \ & # 都是 sed 特殊字符（& = 整个匹配，# = 本行分隔符），逐个转义
+	sed_escape() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/&/\\&/g' -e 's/#/\\#/g'; }
+	SSID_ESC=$(sed_escape "$WRT_SSID")
+	WORD_ESC=$(sed_escape "$WRT_WORD")
 	#修改WIFI名称
-	sed -i "s/ssid='.*'/ssid='$WRT_SSID'/g" $WIFI_UC
+	sed -i "s#ssid='\${defaults?.ssid || 'OWRT'}'#ssid='$SSID_ESC'#g" "$WIFI_UC"
 	#修改WIFI密码
-	sed -i "s/key='.*'/key='$WRT_WORD'/g" $WIFI_UC
+	sed -i "s#key='\${defaults?.key || '12345678'}'#key='$WORD_ESC'#g" "$WIFI_UC"
+	#模板若被上游改写，精确匹配会失效，这里只告警不猜替换，避免产出坏语法
+	if grep -qF '${defaults?.ssid' "$WIFI_UC"; then
+		echo "WARN: mac80211.uc 的 ssid 模板已变化，默认 SSID 未被替换" >&2
+	fi
+	if grep -qF '${defaults?.key' "$WIFI_UC"; then
+		echo "WARN: mac80211.uc 的 key 模板已变化，默认密码未被替换" >&2
+	fi
 fi
 CFG_FILE="./package/base-files/files/bin/config_generate"
 #修改默认IP地址
