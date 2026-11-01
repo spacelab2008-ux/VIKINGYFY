@@ -68,7 +68,9 @@ UPDATE_PACKAGE "diskmanager" "4IceG/luci-app-mini-diskmanager" "main"
 UPDATE_PACKAGE "easytier" "EasyTier/luci-app-easytier" "main"
 UPDATE_PACKAGE "qmodem" "FUjr/QModem" "main"
 UPDATE_PACKAGE "viking" "VIKINGYFY/packages" "main" "" "axonhub gecoosac sing-box luci-app-homeproxy luci-app-timewol luci-app-wolplus luci-app-wolultra"
-UPDATE_PACKAGE "vnt" "lmq8267/luci-app-vnt" "main"
+# vnt：原仓库 lmq8267/luci-app-vnt 已删除（404），且 Config 未启用该包，暂时停用
+# 如需恢复：改用活跃分支 whzhni1/luci-app-vnt2，并在 Config 中加 CONFIG_PACKAGE_luci-app-vnt2=y
+# UPDATE_PACKAGE "vnt" "lmq8267/luci-app-vnt" "main"
 
 UPDATE_PACKAGE "diskman" "sbwml/luci-app-diskman" "main"
 UPDATE_PACKAGE "mosdns" "sbwml/luci-app-mosdns" "v5" "" "v2dat"
