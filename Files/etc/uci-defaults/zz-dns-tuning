@@ -12,11 +12,16 @@
 # 幂等：重复执行只写入相同值，安全
 
 # 1. dnsmasq 必须回到默认 53（历史版本曾把它改到 5353 给独立 DNS 服务让位）
+#    注意 port 项"不存在"就等于默认 53：必须先判空，否则每次开机都会
+#    白跑一次 uci commit 重写 /etc/config/dhcp（overlay 反复落盘）。
+NEED_RESTART=0
 if uci -q get dhcp.@dnsmasq[0] >/dev/null 2>&1; then
-	if [ "$(uci -q get dhcp.@dnsmasq[0].port)" != "53" ]; then
+	PORT_NOW="$(uci -q get dhcp.@dnsmasq[0].port)"
+	if [ -n "$PORT_NOW" ] && [ "$PORT_NOW" != "53" ]; then
 		uci -q delete dhcp.@dnsmasq[0].port >/dev/null 2>&1
 		uci -q delete dhcp.@dnsmasq[0].dns_redirect >/dev/null 2>&1
 		uci commit dhcp
+		NEED_RESTART=1
 	fi
 fi
 
@@ -49,6 +54,16 @@ if [ -f /etc/config/openclash ]; then
 	if [ -f "$HOSTS_LIST" ] && ! grep -qF "'$HOST_NAME':" "$HOSTS_LIST"; then
 		printf '\n# 路由器本体\n%s: %s\n' "'$HOST_NAME'" "'$LAN_IP'" >> "$HOSTS_LIST"
 	fi
+fi
+
+# 5. 本次改动是否要重启 dnsmasq
+#    开机首启时 dnsmasq 还没被 procd 拉起，改完 uci 直接生效，不必重启；
+#    但脚本被手动执行（升级后补救、调试）时 dnsmasq 已在跑，
+#    不重启就会继续监听旧端口，53 端口无人应答 → 全网 DNS 挂掉。
+#    因此只在"进程确实存在"时重启，避免与 rcS 的启动流程打架。
+if [ "${NEED_RESTART:-0}" = "1" ] && pgrep -x dnsmasq >/dev/null 2>&1; then
+	/etc/init.d/dnsmasq restart >/dev/null 2>&1
+	echo "dnsmasq 已重启，监听端口回到 53"
 fi
 
 exit 0

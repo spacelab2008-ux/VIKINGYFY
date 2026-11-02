@@ -33,11 +33,13 @@ jobs:
     with:
       WRT_CONFIG: IPQ60XX-WIFI-NO
       WRT_THEME: aurora
-      WRT_NAME: OWRT
-      WRT_SSID: OWRT
-      WRT_WORD: 12345678
-      WRT_IP: 192.168.10.1
-      WRT_PW: 无
+      WRT_NAME: "OWRT"
+      # 密码必须加引号：纯数字会被 YAML 当成整数，
+      # 以 0 开头的密码会被吃掉前导 0（01234567 → 1234567），且不报错
+      WRT_SSID: "OWRT"
+      WRT_WORD: "12345678"
+      WRT_IP: "192.168.10.1"
+      WRT_PW: "无"
       WRT_REPO: https://github.com/VIKINGYFY/immortalwrt.git
       WRT_BRANCH: main
       WRT_SOURCE: VIKINGYFY/immortalwrt
