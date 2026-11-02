@@ -11,7 +11,7 @@
 #
 # 幂等：重复执行只写入相同值，安全
 
-# 1. dnsmasq 必须回到默认 53（早期装 AdGuard Home 时被改到 5353）
+# 1. dnsmasq 必须回到默认 53（历史版本曾把它改到 5353 给独立 DNS 服务让位）
 if uci -q get dhcp.@dnsmasq[0] >/dev/null 2>&1; then
 	if [ "$(uci -q get dhcp.@dnsmasq[0].port)" != "53" ]; then
 		uci -q delete dhcp.@dnsmasq[0].port >/dev/null 2>&1
