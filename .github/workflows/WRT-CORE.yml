@@ -107,7 +107,9 @@ jobs:
           df -h / /mnt 2>/dev/null || df -h
 
           # runner 镜像预装了大量与固件编译无关的 SDK/语言运行时，全量删除可释放 40G 以上。
-          # 注意：hostedtoolcache 被清掉后 actions/setup-* 缓存失效，本工作流没有用到它们，安全。
+          # 注意：/opt/hostedtoolcache/go 是构建宿主 Go 工具链，prepare-build-host.sh 依赖它
+          #（用于 CONFIG_GOLANG_EXTERNAL_BOOTSTRAP_ROOT），整目录删除会导致
+          # "go: command not found" 并在 Custom Settings 阶段以 127 退出，因此只在下面单独裁剪它。
           sudo rm -rf \
             /usr/share/dotnet \
             /usr/local/lib/android \
@@ -116,7 +118,6 @@ jobs:
             /opt/ghc \
             /opt/az \
             /opt/microsoft \
-            /opt/hostedtoolcache \
             /usr/local/lib/node_modules \
             /usr/local/aws-cli \
             /usr/local/aws-sam-cli \
@@ -125,11 +126,24 @@ jobs:
             /usr/share/miniconda \
             /usr/lib/jvm 2>/dev/null || true
 
+          # hostedtoolcache 只清非 Go 的缓存（node/python/ruby 等），保留 go
+          if [ -d /opt/hostedtoolcache ]; then
+            sudo find /opt/hostedtoolcache -mindepth 1 -maxdepth 1 ! -name 'go' -exec rm -rf {} + 2>/dev/null || true
+          fi
+
           sudo docker image prune --all --force 2>/dev/null || true
           sudo docker builder prune --all --force 2>/dev/null || true
           sudo docker system prune --all --force --volumes 2>/dev/null || true
           sudo apt-get -yqq clean
           sudo swapoff -a 2>/dev/null || true
+
+          # 构建宿主 Go 工具链必须存活，否则 Custom Settings 阶段的
+          # prepare-build-host.sh 会以 127 退出（历史故障点），这里前置拦截
+          if ! command -v go >/dev/null 2>&1; then
+            echo "::error::Go 工具链不可用，清理步骤删过头了"
+            exit 1
+          fi
+          echo "Go: $(go version)"
 
           echo "=========== 清理后 ==========="
           df -h / /mnt 2>/dev/null || df -h
@@ -315,15 +329,21 @@ jobs:
             fi
           } > "$OUT" 2>&1
 
-          # 判因
-          if [ -n "$AVAIL" ] && [ "$AVAIL" -lt 3 ]; then
+          # 判因（环境类优先：环境缺失时不会有 compile.txt，往下判全是误导）
+          if ! command -v go >/dev/null 2>&1; then
+            ERRORS="构建机 Go 工具链缺失（go 不在 PATH）→ Free Disk Space 清理过界，prepare-build-host.sh 在 Custom Settings 阶段以 127 退出"
+          elif [ -n "$AVAIL" ] && [ "$AVAIL" -lt 3 ]; then
             ERRORS="磁盘写满（No space left on device）→ 需扩容或减少编译产物"
           elif grep -qi "No space left on device" "$OUT"; then
             ERRORS="磁盘写满（No space left on device）→ 需扩容或减少编译产物"
           elif grep -qiE "Killed|Out of memory|out of memory" "$OUT"; then
             ERRORS="进程被 OOM Killer 杀掉 → 内存不足（Go 编译 AGH 阶段最容易触发）"
+          elif grep -qiE "command not found|exit code 127" "$OUT"; then
+            ERRORS="构建机缺少命令或工具链（command not found / exit 127）→ 检查 Free Disk Space 是否误删工具链"
           elif grep -qi "golang" "$OUT" && grep -qiE "error" "$OUT"; then
             ERRORS="疑似 Go 工具链/AGH 编译失败 → 检查 golang1.27 与 adguardhome 版本匹配"
+          elif [ ! -s "$OUT" ] || ! grep -qiE "(error|fatal)" "$OUT"; then
+            ERRORS="失败发生在编译之前的准备阶段（无编译日志）→ 逐个检查 Custom Packages / Custom Settings / Download Packages"
           else
             ERRORS="具体包的编译错误，详见下方摘要"
           fi
