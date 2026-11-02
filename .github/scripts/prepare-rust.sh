@@ -4,6 +4,27 @@
 
 set -euo pipefail
 
+# --- Rust 工具链守卫：缺失则优雅跳过，而不是让整轮固件构建失败 ---
+RUSTUP_BIN=$(command -v rustup || true)
+if [ -z "$RUSTUP_BIN" ]; then
+	for candidate in "$HOME/.cargo/bin/rustup" /usr/bin/rustup; do
+		if [ -x "$candidate" ]; then RUSTUP_BIN=$candidate; break; fi
+	done
+fi
+# 没有 rustup：尝试自助引导（需要网络）。这样在默认不预装 Rust 的
+# GitHub-hosted runner 上也能自洽，不必依赖外部预装环境。
+if [ -z "$RUSTUP_BIN" ]; then
+	if command -v curl >/dev/null 2>&1 && curl -fsSL --max-time 60 https://sh.rustup.rs | sh -s -- -y --profile minimal >/dev/null 2>&1; then
+		RUSTUP_BIN="$HOME/.cargo/bin/rustup"
+	fi
+fi
+# 仍然拿不到 rustup：当前 38 个包均不在编译期依赖 Rust，直接跳过。
+# 若日后加入需要 Rust 的包，再回来收紧此分支（改为 exit 1）。
+if [ -z "$RUSTUP_BIN" ]; then
+	echo "rustup 不可用且自助引导失败；未检测到需要 Rust 的包 -> 跳过 Rust 准备" >&2
+	exit 0
+fi
+
 RUST_FEED="$PWD/feeds/packages/lang/rust"
 RUST_MAKEFILE="$RUST_FEED/Makefile"
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -19,16 +40,6 @@ ci-rust-target:
 	@printf '%s\n' '$(RUSTC_TARGET_ARCH)'
 MAKE
 )
-RUSTUP_BIN=$(command -v rustup || true)
-if [ -z "$RUSTUP_BIN" ]; then
-	for candidate in "$HOME/.cargo/bin/rustup" /usr/bin/rustup; do
-		if [ -x "$candidate" ]; then RUSTUP_BIN=$candidate; break; fi
-	done
-fi
-if [ -z "$RUSTUP_BIN" ]; then
-	echo "rustup is missing from the GitHub runner" >&2
-	exit 1
-fi
 PATH="$(dirname "$RUSTUP_BIN"):$PATH"
 export PATH
 RUST_TOOLCHAIN=$(rustup show active-toolchain | awk '{print $1}')

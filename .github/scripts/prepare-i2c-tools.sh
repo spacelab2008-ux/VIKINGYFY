@@ -5,7 +5,12 @@
 set -euo pipefail
 
 I2C_MAKEFILE=feeds/packages/utils/i2c-tools/Makefile
-test -f "$I2C_MAKEFILE"
+# i2c-tools 是 feeds 常驻包，但这是"可选优化"而非构建硬依赖：
+# 一旦 feed 布局变更/包改名/feed 未拉全导致文件缺失，不应让整轮构建失败。
+if [ ! -f "$I2C_MAKEFILE" ]; then
+	echo "未找到 i2c-tools Makefile ($I2C_MAKEFILE)，跳过 Python SMBus 绑定调整" >&2
+	exit 0
+fi
 
 # Build the Python SMBus binding only when its package is selected. The C
 # tools remain available for device profiles that only install i2c-tools.
