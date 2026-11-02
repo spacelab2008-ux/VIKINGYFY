@@ -74,7 +74,7 @@ if [ -d "$GITHUB_WORKSPACE/Files" ]; then
 	fi
 	#权限：AGH 主配置仅属主可读（启动时 init 会 chown 给 adguardhome 用户）
 	chmod 600 ./files/etc/adguardhome/adguardhome.yaml ./files/etc/config/adguardhome 2>/dev/null
-	chmod 755 ./files/etc/uci-defaults/99-adguard-dns 2>/dev/null
+	chmod 755 ./files/etc/uci-defaults/zz-adguard-dns 2>/dev/null
 	chmod 644 ./files/etc/nftables.d/20-dns-hijack.nft 2>/dev/null
 	echo "AdGuard Home presets copied to ./files/"
 fi
