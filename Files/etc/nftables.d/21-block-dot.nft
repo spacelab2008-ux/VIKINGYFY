@@ -1,0 +1,28 @@
+## 阻断内网客户端向外发起的 DoT（DNS over TLS，853/tcp+udp）
+## 目的：Android「私人 DNS」/ iOS 加密 DNS / 浏览器安全 DNS 会直连外部
+##       853 端口，完全绕开本机 DNS，导致这部分查询不经 OpenClash 分流
+##       （国内域名被解析到海外、国外域名拿到污染结果）。
+## 处理：直接 reject，客户端（Android 自动模式、iOS、Chrome 等）会自动
+##       回落到普通 53 端口，被 OpenClash 的 DNS 劫持送进 mihomo。
+##
+## 必须挂在 prerouting（priority -300 = raw 之前）而不是 forward：
+## OpenClash 在 prerouting 阶段就把 LAN 流量 redirect 到本地代理端口，
+## 挂 forward 的规则永远拿不到这些包，等于不生效。
+##
+## 只处理源接口为 br-lan 的流量，并排除目标是内网地址的情况，
+## 避免误伤内网自建的 DoT 服务。路由器自身出站（output）不受影响。
+## 只计数不写日志：命中量可达每分钟数条，而 logread 是 128K 环形缓冲，
+## 持续写入会把有用的排查日志冲掉。需要时用
+##   nft list chain inet fw4 block_dot_prerouting
+## 看 counter 即可。
+chain block_dot_prerouting {
+	type filter hook prerouting priority -300; policy accept;
+
+	iifname != "br-lan" return
+	meta l4proto != { tcp, udp } return
+	th dport != 853 return
+	ip daddr 192.168.10.0/24 return
+	ip6 daddr { fd00::/8, fe80::/10 } return
+
+	counter reject
+}

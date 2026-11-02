@@ -61,22 +61,22 @@ if [[ "${WRT_TARGET^^}" == *"QUALCOMMAX"* ]]; then
 		echo "qualcommax set up nowifi successfully!"
 	fi
 fi
-#预置 AdGuard Home 配置与 DNS 劫持规则：Files/ -> ./files/，随固件烧入（顶层 files/ 会被打进 rootfs）
+#预置系统文件：Files/ -> ./files/，随固件烧入（顶层 files/ 会被打进 rootfs）
 if [ -d "$GITHUB_WORKSPACE/Files" ]; then
 	mkdir -p ./files
 	cp -a "$GITHUB_WORKSPACE/Files/." ./files/
-	#DNS 劫持规则里的内网网段跟随 WRT_IP（默认写的是 192.168.10.0/24）
-	NFT_FILE="./files/etc/nftables.d/20-dns-hijack.nft"
-	if [ -f "$NFT_FILE" ] && [ -n "$WRT_IP" ]; then
+	#nft 规则里的内网网段跟随 WRT_IP（默认写的是 192.168.10.0/24）
+	for NFT_FILE in ./files/etc/nftables.d/*.nft; do
+		[ -f "$NFT_FILE" ] || continue
+		[ -n "$WRT_IP" ] || continue
 		SUBNET="${WRT_IP%.*}.0/24"
 		sed -i "s#ip daddr [0-9.]*/24 return#ip daddr $SUBNET return#" "$NFT_FILE"
-		echo "dns hijack subnet -> $SUBNET"
-	fi
-	#权限：AGH 主配置仅属主可读（启动时 init 会 chown 给 adguardhome 用户）
-	chmod 600 ./files/etc/adguardhome/adguardhome.yaml ./files/etc/config/adguardhome 2>/dev/null
-	chmod 755 ./files/etc/uci-defaults/zz-adguard-dns 2>/dev/null
-	chmod 644 ./files/etc/nftables.d/20-dns-hijack.nft 2>/dev/null
-	echo "AdGuard Home presets copied to ./files/"
+		echo "$(basename "$NFT_FILE") subnet -> $SUBNET"
+	done
+	#权限：uci-defaults 脚本必须可执行（缺失会静默跳过），nft 片段需可读
+	chmod 755 ./files/etc/uci-defaults/* 2>/dev/null
+	chmod 644 ./files/etc/nftables.d/*.nft 2>/dev/null
+	echo "System presets copied to ./files/"
 fi
 #内核槽大小适配（nn6000 已刷 12MB 内核分区，见 function.sh）
 source $GITHUB_WORKSPACE/Scripts/function.sh

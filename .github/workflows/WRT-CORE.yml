@@ -341,7 +341,7 @@ jobs:
           elif grep -qiE "command not found|exit code 127" "$OUT"; then
             ERRORS="构建机缺少命令或工具链（command not found / exit 127）→ 检查 Free Disk Space 是否误删工具链"
           elif grep -qi "golang" "$OUT" && grep -qiE "error" "$OUT"; then
-            ERRORS="疑似 Go 工具链/AGH 编译失败 → 检查 golang1.27 与 adguardhome 版本匹配"
+            ERRORS="疑似 Go 工具链问题 → 检查 golang1.27 是否可用（Free Disk Space 是否误删 hostedtoolcache/go）"
           elif [ ! -s "$OUT" ] || ! grep -qiE "(error|fatal)" "$OUT"; then
             ERRORS="失败发生在编译之前的准备阶段（无编译日志）→ 逐个检查 Custom Packages / Custom Settings / Download Packages"
           else

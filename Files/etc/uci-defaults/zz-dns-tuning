@@ -1,0 +1,54 @@
+#!/bin/sh
+# DNS 收尾：让 OpenClash 接管 53，并修正 fake-ip 过滤
+#
+# 架构：客户端 :53 → OpenClash DNS 劫持 → mihomo :7874 → 外网
+#   - dnsmasq 保持默认 53，负责 DHCP 与 *.lan 本地域名
+#   - OpenClash 的 enable_redirect_dns 把内网 53 查询劫持到 mihomo
+#   - 不再有独立的 DNS 过滤服务，广告拦截依赖客户端侧（uBlock Origin 等）
+#
+# 命名用 zz- 前缀：uci-defaults 按文件名排序执行，OpenClash 自带的是
+# luci-app-openclash（字母开头），数字前缀会排在它之前从而被覆盖。
+#
+# 幂等：重复执行只写入相同值，安全
+
+# 1. dnsmasq 必须回到默认 53（早期装 AdGuard Home 时被改到 5353）
+if uci -q get dhcp.@dnsmasq[0] >/dev/null 2>&1; then
+	if [ "$(uci -q get dhcp.@dnsmasq[0].port)" != "53" ]; then
+		uci -q delete dhcp.@dnsmasq[0].port >/dev/null 2>&1
+		uci -q delete dhcp.@dnsmasq[0].dns_redirect >/dev/null 2>&1
+		uci commit dhcp
+	fi
+fi
+
+if [ -f /etc/config/openclash ]; then
+	# 2. 显式打开 DNS 劫持
+	#    uci-defaults 的执行顺序不保证，上游默认值也可能被其他脚本改动，
+	#    这里写死期望值，避免出现"客户端 DNS 未经分流"的半残状态。
+	uci set openclash.config.enable_redirect_dns='1'
+	uci set openclash.config.redirect_dns='1'
+
+	# 3. 启用 OpenClash 自带的自定义 fake-ip 过滤 / hosts
+	#    这两个开关默认是 0，导致包内已预置的 140+ 条内网与特殊域名规则
+	#    （*.lan / *.local / NTP / 游戏 / 微信 / 网易云 …）全部不生效，
+	#    内网单标签主机名会被判成 fake-ip（如 OWRT → 198.18.0.x）而访问不到。
+	uci set openclash.config.custom_fakeip_filter='1'
+	uci set openclash.config.custom_host='1'
+	uci commit openclash
+
+	# 4. 幂等补上路由器本体主机名，确保单标签名解析到真实管理地址
+	LAN_IP=$(uci -q get network.lan.ipaddr)
+	[ -n "$LAN_IP" ] || LAN_IP='192.168.10.1'
+	FAKE_FILTER='/etc/openclash/custom/openclash_custom_fake_filter.list'
+	HOSTS_LIST='/etc/openclash/custom/openclash_custom_hosts.list'
+	HOST_NAME=$(uci -q get system.@system[0].hostname)
+	[ -n "$HOST_NAME" ] || HOST_NAME='OWRT'
+
+	if [ -f "$FAKE_FILTER" ] && ! grep -qxF "$HOST_NAME" "$FAKE_FILTER"; then
+		printf '\n# 路由器本体主机名（单标签，避免被 fake-ip 吃掉）\n%s\n' "$HOST_NAME" >> "$FAKE_FILTER"
+	fi
+	if [ -f "$HOSTS_LIST" ] && ! grep -qF "'$HOST_NAME':" "$HOSTS_LIST"; then
+		printf '\n# 路由器本体\n%s: %s\n' "'$HOST_NAME'" "'$LAN_IP'" >> "$HOSTS_LIST"
+	fi
+fi
+
+exit 0
