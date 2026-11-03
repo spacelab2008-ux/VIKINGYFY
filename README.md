@@ -58,12 +58,24 @@ Scripts——自定义脚本
 
 Config——自定义配置
 
+### Config 启用状态
+
+| 文件 | 状态 | 说明 |
+|---|---|---|
+| `IPQ60XX-WIFI-NO.txt` | ✅ 生产 | `NN6000-V2.yml` 当前唯一引用的机型配置 |
+| `GENERAL.txt` | ✅ 生产 | 所有构建追加的通用配置 |
+| `TEST.txt` | ✅ 生产 | `TEST=true` 时仅输出配置、不编译固件 |
+| `AIROHA` `IPQ53XX` `IPQ95XX` `ROCKCHIP` `X86` | ⚠️ 备用 | 无 workflow 引用，保留给将来多机型 |
+| `MEDIATEK-WIFI-YES/NO` `IPQ807X-WIFI-YES/NO` `IPQ60XX-WIFI-YES` | ⚠️ 备用 | 同上；按需在 workflow 里把 `WRT_CONFIG` 指过来即可启用 |
+
+> ⚠️ 标记「备用」的文件**不参与任何构建**，只作为模板存档。新增机型时复制一份 `NN6000-V2.yml`，改 `WRT_CONFIG` 指向目标文件即可。
+
 ## Star History
 
-<a href="https://www.star-history.com/?repos=vikingyfy%2Fopenwrt-ci&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=spacelab2008-ux%2FVIKINGYFY&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=vikingyfy/openwrt-ci&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=vikingyfy/openwrt-ci&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=vikingyfy/openwrt-ci&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=spacelab2008-ux/VIKINGYFY&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=spacelab2008-ux/VIKINGYFY&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=spacelab2008-ux/VIKINGYFY&type=date&legend=top-left" />
  </picture>
 </a>

@@ -165,6 +165,9 @@ if $OC_ENABLED; then
 fi
 
 #更新软件包版本
+#⚠️ 当前 CI 流程不调用本函数：文件末尾的两行调用示例是注释状态。
+#   保留原因：需要把某个包钉到上游最新 release 时可直接取消注释使用。
+#   不要误以为它在构建中生效——构建走的是 feeds 默认版本。
 UPDATE_VERSION() {
 	local PKG_NAME=$1
 	local PKG_MARK=${2:-false}
