@@ -19,11 +19,11 @@ on:
 
 permissions:
   contents: write
-  # 必须显式授予：声明 permissions 块后，未列出的 scope 全部降为 none。
-  # WRT-CORE 的 cache-rollover job 用 gh cache list/delete 清理旧代缓存，
-  # 这两个接口分别要求 actions: read 与 actions: write；缺失时会 403，
-  # 表现为缓存永不被清理，逐轮堆积直至撑满 10 GB 配额并挤掉最新缓存。
-  # Auto-Clean.yml 同样同时授予了这两项。
+  # WRT-CORE 的 cache-rollover job 用 gh cache list/delete 轮换构建缓存，
+  # 语义上需要 actions 读写权限。实测在本仓库当前继承行为下 actions 本就可用
+  # （日志中 gh cache list 未报 403，缓存稳定保持 1 个世代），故此处不是缺陷修复，
+  # 而是把隐含依赖显式化：若将来 GitHub 收紧 token 继承策略，rollover 会静默 403，
+  # 表现为缓存逐轮堆积直至撑满配额并挤掉最新缓存。Auto-Clean.yml 同样授予了这两项。
   actions: write
 
 # 定时任务与手动触发串行执行：同一时间只跑一个构建，
