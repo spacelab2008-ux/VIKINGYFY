@@ -38,7 +38,7 @@ jobs:
     uses: ./.github/workflows/WRT-CORE.yml
     with:
       WRT_CONFIG: IPQ60XX-WIFI-NO
-      WRT_THEME: aurora
+      WRT_THEME: argon
       WRT_NAME: "OWRT"
       # 密码必须加引号：纯数字会被 YAML 当成整数，
       # 以 0 开头的密码会被吃掉前导 0（01234567 → 1234567），且不报错
