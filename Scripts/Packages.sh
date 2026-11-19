@@ -167,7 +167,18 @@ if $OC_ENABLED; then
 	OC_ARCH=arm64
 	grep -qs '^CONFIG_TARGET_x86' "${GITHUB_WORKSPACE:-.}/Config/$WRT_CONFIG.txt" 2>/dev/null && OC_ARCH=amd64
 	OC_CORE_DIR="./files/etc/openclash/core"
-	OC_VER=$(curl -fsSL --max-time 30 "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" | jq -r ".tag_name // empty" 2>/dev/null)
+	#取 mihomo 最新版本号：
+	#优先走 releases/latest 的 302 Location —— 不消耗 api.github.com 匿名限额（60 次/h）。
+	#core job 出于安全刻意不注入 GITHUB_TOKEN，原来的 API 调用在每日多轮编译下被限流后
+	#OC_VER 为空 → 静默跳过内置内核 → 固件凭空小 ~16MB（刷机后需联网下载内核）。
+	OC_VER=$(curl -sI --max-time 30 "https://github.com/MetaCubeX/mihomo/releases/latest" \
+		| tr -d '\r' | awk 'tolower($1)=="location:"{print $2}' \
+		| grep -oE 'tag/[A-Za-z0-9._-]+' | tail -1 | cut -d/ -f2)
+	if [ -z "$OC_VER" ]; then
+		#备用：API 端点（若将来在该 job 注入了 token 则限额 5000/h）
+		OC_VER=$(curl -fsSL --max-time 30 "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest" \
+			| jq -r ".tag_name // empty" 2>/dev/null)
+	fi
 	if [ -n "$OC_VER" ]; then
 		#mihomo 的发布资源命名各架构不一致：amd64 没有裸 mihomo-linux-amd64-<ver>.gz，
 		#只有 -compatible / -v1 / -v1-go1xx 变体（-compatible 兼容性最好）；
