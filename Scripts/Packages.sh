@@ -63,14 +63,44 @@ UPDATE_PACKAGE() {
 # UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf" 这样会把原有的open-app-filter，luci-app-appfilter，oaf相关组件删除，不会出现coremark错误。
 
 # UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件"
-UPDATE_PACKAGE "argon" "sbwml/luci-theme-argon" "openwrt-25.12"
-UPDATE_PACKAGE "aurora" "eamonxg/luci-theme-aurora" "master"
-UPDATE_PACKAGE "aurora-config" "eamonxg/luci-app-aurora-config" "master"
-UPDATE_PACKAGE "fluent" "LazuliKao/luci-theme-fluent" "main"
-UPDATE_PACKAGE "footstrap" "VizzleTF/luci-theme-footstrap" "main"
-UPDATE_PACKAGE "kucat" "sirpdboy/luci-theme-kucat" "master"
-UPDATE_PACKAGE "kucat-config" "sirpdboy/luci-app-kucat-config" "master"
-UPDATE_PACKAGE "shadcn" "eamonxg/luci-theme-shadcn" "main"
+#主题：只克隆 WRT_THEME 选中的那一套，避免每轮拉取 8 个主题仓库（节省准备时间）。
+#Settings.sh 会把 collections Makefile 的 luci-theme-bootstrap 替换为 WRT_THEME，
+#并写入 CONFIG_PACKAGE_luci-theme-$WRT_THEME=y，因此必须保证选中主题一定被克隆。
+#若 WRT_THEME 未设置或不在下表，回退为克隆全部主题，避免缺主题导致固件无 LuCI。
+#换主题：改 workflow 的 WRT_THEME 即可，同时按需在对应分支补 UPDATE_PACKAGE 映射。
+case "${WRT_THEME:-}" in
+	aurora)
+		UPDATE_PACKAGE "aurora" "eamonxg/luci-theme-aurora" "master"
+		UPDATE_PACKAGE "aurora-config" "eamonxg/luci-app-aurora-config" "master"
+		;;
+	argon)
+		UPDATE_PACKAGE "argon" "sbwml/luci-theme-argon" "openwrt-25.12"
+		;;
+	fluent)
+		UPDATE_PACKAGE "fluent" "LazuliKao/luci-theme-fluent" "main"
+		;;
+	footstrap)
+		UPDATE_PACKAGE "footstrap" "VizzleTF/luci-theme-footstrap" "main"
+		;;
+	kucat)
+		UPDATE_PACKAGE "kucat" "sirpdboy/luci-theme-kucat" "master"
+		UPDATE_PACKAGE "kucat-config" "sirpdboy/luci-app-kucat-config" "master"
+		;;
+	shadcn)
+		UPDATE_PACKAGE "shadcn" "eamonxg/luci-theme-shadcn" "main"
+		;;
+	*)
+		echo "WARN: WRT_THEME='$WRT_THEME' 未在主题清单中，回退为克隆全部主题" >&2
+		UPDATE_PACKAGE "argon" "sbwml/luci-theme-argon" "openwrt-25.12"
+		UPDATE_PACKAGE "aurora" "eamonxg/luci-theme-aurora" "master"
+		UPDATE_PACKAGE "aurora-config" "eamonxg/luci-app-aurora-config" "master"
+		UPDATE_PACKAGE "fluent" "LazuliKao/luci-theme-fluent" "main"
+		UPDATE_PACKAGE "footstrap" "VizzleTF/luci-theme-footstrap" "main"
+		UPDATE_PACKAGE "kucat" "sirpdboy/luci-theme-kucat" "master"
+		UPDATE_PACKAGE "kucat-config" "sirpdboy/luci-app-kucat-config" "master"
+		UPDATE_PACKAGE "shadcn" "eamonxg/luci-theme-shadcn" "main"
+		;;
+esac
 
 UPDATE_PACKAGE "momo" "nikkinikki-org/OpenWrt-momo" "main"
 UPDATE_PACKAGE "nikki" "nikkinikki-org/OpenWrt-nikki" "main"

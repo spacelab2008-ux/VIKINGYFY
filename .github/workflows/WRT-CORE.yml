@@ -379,7 +379,11 @@ jobs:
           retention-days: 7
 
       - name: Save Build Cache
-        if: ${{ !inputs.WRT_TEST && success() && steps.cache-restore.outputs.cache-hit != 'true' }}
+        # cache-restore 用的是 actions/cache/restore，只输出 cache-matched-key，
+        # 没有 cache-hit（那是 actions/cache 四合一 action 的输出）。旧写法恒为空，
+        # 条件恒真 → 即使本轮命中缓存也会重复 save，白传数 GB 且可能覆盖缓存。
+        # 正确语义：只有没命中缓存（matched-key 为空）时才需要新建缓存。
+        if: ${{ !inputs.WRT_TEST && success() && steps.cache-restore.outputs.cache-matched-key == '' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: ${{env.WRT_CACHE_KEY}}

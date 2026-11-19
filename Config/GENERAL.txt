@@ -15,8 +15,7 @@ CONFIG_PACKAGE_luci-app-samba4=n
 CONFIG_CCACHE=y
 CONFIG_DEVEL=y
 CONFIG_FEED_video=n
-CONFIG_FEED_pon_drivers=n
-CONFIG_FEED_pon_userspace=n
+#pon 两个 feed 在当前源码 feeds.conf.default 中不存在，写了也会被 defconfig 丢弃，已移除
 CONFIG_TARGET_MULTI_PROFILE=y
 CONFIG_TARGET_PER_DEVICE_ROOTFS=y
 CONFIG_TARGET_ROOTFS_INITRAMFS=n
@@ -54,13 +53,16 @@ CONFIG_PACKAGE_kmod-tun=y
 CONFIG_PACKAGE_kmod-usb3=y
 CONFIG_PACKAGE_kmod-usb-core=y
 CONFIG_PACKAGE_kmod-usb-dwc3=y
-CONFIG_PACKAGE_kmod-usb-ehci=y
+#kmod-usb-ehci 是源码里的 HIDDEN 包（由 kmod-usb2 依赖自动拉入），
+#用户无法直接 =y 选中，写了会被 defconfig 丢弃；qualcommax 走 dwc3 也不需要 EHCI，已移除。
 CONFIG_PACKAGE_kmod-usb-storage=y
 CONFIG_PACKAGE_kmod-usb-storage-extras=y
 CONFIG_PACKAGE_kmod-usb-storage-uas=y
 CONFIG_PACKAGE_kmod-veth=y
 CONFIG_PACKAGE_kmod-wireguard=y
 #精简：移除无用驱动（声卡/SATA/NVMe/USB1.1/全部USB网卡/ksmbd）
+#注：sound-core / usb-audio 的 =n 在 qualcommax 平台无对应包（不生效），
+#但在 x86/rockchip 等平台真实存在且有效，故保留——本文件被所有非 TEST 平台共用。
 CONFIG_PACKAGE_kmod-ata-ahci=n
 CONFIG_PACKAGE_kmod-ata-core=n
 CONFIG_PACKAGE_kmod-fs-ksmbd=n

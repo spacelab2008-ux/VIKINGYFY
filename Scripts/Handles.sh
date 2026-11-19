@@ -23,6 +23,8 @@ FIX() {
 }
 
 #修改argon主题字体和颜色
+#注：Packages.sh 现在只克隆 WRT_THEME 选中的主题；非 argon 构建下该目录不存在，
+#FIX 的守卫会自动跳过。切回 argon 主题时此补丁仍会生效。
 FIX "theme-argon" "$PACKAGE_PATH/luci-theme-argon" sed -i \
 	"s/primary '.*'/primary '#31a1a1'/g; s/'0.2'/'0.5'/g; s/'none'/'bing'/g; s/'600'/'normal'/g" \
 	"$PACKAGE_PATH/luci-theme-argon/luci-app-argon-config/root/etc/config/argon"
